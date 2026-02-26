@@ -23,7 +23,7 @@ library(tseries) #package for JB test
 
 
 #Q3
-data <- read.table("s1_data.txt",header = TRUE,sep= "\t") #import the data (a tab delimited txt file with headers)
+data <- read.table("lab/01_Exercise01/s1_data.txt",header = TRUE,sep= "\t") #import the data (a tab delimited txt file with headers)
 
 #Explanation: 
 #This code reads data from a file named "s1_data.txt" into a variable called "data", 
