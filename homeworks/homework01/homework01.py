@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 def monthly_log_return(df):
     """Return monthly log returns from January 2021 onward."""
@@ -32,10 +32,21 @@ def monthly_log_return(df):
     print(f"Mean monthly log return STOXX600: {sto_mean:.4f}")
     print(f"Mean monthly log return NIKKEI: {nky_mean:.4f}")
 
-    return result
+    return result, data
+
+
+def wti_plot(df): 
+    plt.plot(df["Date"], df["WTI_monthly_log_return"])
+    plt.show()
 
 
 if __name__ == "__main__":
+    # 1.)
     df = pd.read_csv("./homework01/s1_data_hw.csv", encoding="utf-8-sig")
-    monthly_returns = monthly_log_return(df)
+    monthly_returns, df_adjusted = monthly_log_return(df)
     print(monthly_returns.head())
+
+    # 2.) 
+    wti_plot(df_adjusted)
+
+
