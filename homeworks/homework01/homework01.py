@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy import stats
+
 
 def monthly_log_return(df):
     """Return monthly log returns from January 2021 onward."""
@@ -35,7 +38,7 @@ def monthly_log_return(df):
     return result, data
 
 
-def wti_plot(df):
+def wti_plots(df):
     price_series = df[["Date", "CL1 COMDTY"]].dropna()
     return_series = df.dropna(subset=["WTI_monthly_log_return"])
 
@@ -62,15 +65,31 @@ def wti_plot(df):
         f"{max_value:.2%} around {max_date}, highlighting their volatility."
     )
 
-    plt.plot(df["Date"], df["CL1 COMDTY"])
-    plt.show()
+
+def testing_avg_ret_stoxx(df): 
+    # HYPOTHESIS:
+    # H_0:= mu = 0 
+    # H_1:= mu != 0
+
+    significance_level = 0.05
+    t, p = stats.ttest_1samp(df["STOXX600_monthly_log_return"], popmean=0.0)
+    if p < significance_level:
+        print("REJECT H_0")
+    else: 
+        print("FAILED TO REJECT H_0")
+    
+    # *spoiler*: we fail to reject the H_0 => H_0 is likely
 
 
 if __name__ == "__main__":
     # 1.)
-    df = pd.read_csv("./homeworks/homework01/s1_data_hw.csv", encoding="utf-8-sig")
+    df = pd.read_csv("./homework01/s1_data_hw.csv", encoding="utf-8-sig")
     monthly_returns, df_adjusted = monthly_log_return(df)
     print(monthly_returns.head())
 
     # 2.) 
-    wti_plot(df_adjusted)
+    wti_plots(df_adjusted)
+
+    # 3.) 
+    testing_avg_ret_stoxx(df_adjusted)
+
