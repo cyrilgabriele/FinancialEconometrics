@@ -45,6 +45,7 @@ def wti_plots(df):
     fig, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
 
     axes[0].plot(price_series["Date"], price_series["CL1 COMDTY"], color="tab:blue")
+    axes[0].axhline(price_series["CL1 COMDTY"].mean(), color="black", linewidth=0.8, linestyle="--")
     axes[0].set_title("WTI Price Index")
     axes[0].set_ylabel("Index Level")
 
@@ -62,7 +63,7 @@ def wti_plots(df):
     max_value = return_series.loc[max_idx, "WTI_monthly_log_return"]
     print(
         "WTI returns show a pronounced spike of "
-        f"{max_value:.2%} around {max_date}, highlighting their volatility."
+        f"{max_value:.2%} around {max_date}, highlighting their volatility.\n"
     )
 
 
@@ -73,23 +74,48 @@ def testing_avg_ret_stoxx(df):
 
     significance_level = 0.05
     t, p = stats.ttest_1samp(df["STOXX600_monthly_log_return"], popmean=0.0)
+
+    print(f"t-statistic: ${t}\n")
+    print(f"p-value: ${p}\n")
     if p < significance_level:
-        print("REJECT H_0")
+        print("REJECT H_0\n")
     else: 
-        print("FAILED TO REJECT H_0")
+        print("FAILED TO REJECT H_0\n")
     
     # *spoiler*: we fail to reject the H_0 => H_0 is likely
 
 
+def testing_CI_avg_ret_gold(df): 
+    level = 0.95
+    gold_returns = df["GOLD_monthly_log_return"].dropna()
+    n = gold_returns.count()
+    mean_value = gold_returns.mean()
+    se = gold_returns.std(ddof=1) / np.sqrt(n)
+    a, b = stats.t.interval(level, n - 1, loc=mean_value, scale=se)
+    
+    print(f"CI-Testing: 2.5th percentile: ${a}\n")
+    print(f"CI-Testing: 97.5th percentile: ${b}\n")
+    rf_mean = df["RF_monthly"].mean()
+    print(f"Average monthly risk-free rate: {rf_mean:.4f}")
+    if a > rf_mean:
+        print("Gold's mean return exceeds the risk-free rate at the 95% confidence level.\n")
+    else:
+        print("Cannot claim Gold outperformed the risk-free rate at the 95% confidence level.\n")
+
+
 if __name__ == "__main__":
-    # 1.)
+    # 1.) + 2.)
     df = pd.read_csv("./homework01/s1_data_hw.csv", encoding="utf-8-sig")
     monthly_returns, df_adjusted = monthly_log_return(df)
     print(monthly_returns.head())
 
-    # 2.) 
-    wti_plots(df_adjusted)
-
     # 3.) 
-    testing_avg_ret_stoxx(df_adjusted)
+    # wti_plots(df_adjusted)
+
+    # 4.) 
+    testing_avg_ret_stoxx(monthly_returns)
+
+    # 5.) 
+    testing_CI_avg_ret_gold(monthly_returns)
+
 
