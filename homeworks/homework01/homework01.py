@@ -35,18 +35,42 @@ def monthly_log_return(df):
     return result, data
 
 
-def wti_plot(df): 
-    plt.plot(df["Date"], df["WTI_monthly_log_return"])
+def wti_plot(df):
+    price_series = df[["Date", "CL1 COMDTY"]].dropna()
+    return_series = df.dropna(subset=["WTI_monthly_log_return"])
+
+    fig, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+
+    axes[0].plot(price_series["Date"], price_series["CL1 COMDTY"], color="tab:blue")
+    axes[0].set_title("WTI Price Index")
+    axes[0].set_ylabel("Index Level")
+
+    axes[1].plot(return_series["Date"], return_series["WTI_monthly_log_return"], color="tab:orange")
+    axes[1].axhline(0, color="black", linewidth=0.8, linestyle="--")
+    axes[1].set_title("WTI Monthly Log Returns")
+    axes[1].set_ylabel("Log Return")
+    axes[1].set_xlabel("Date")
+
+    plt.tight_layout()
+    plt.show()
+
+    max_idx = return_series["WTI_monthly_log_return"].abs().idxmax()
+    max_date = return_series.loc[max_idx, "Date"].strftime("%b %Y")
+    max_value = return_series.loc[max_idx, "WTI_monthly_log_return"]
+    print(
+        "WTI returns show a pronounced spike of "
+        f"{max_value:.2%} around {max_date}, highlighting their volatility."
+    )
+
+    plt.plot(df["Date"], df["CL1 COMDTY"])
     plt.show()
 
 
 if __name__ == "__main__":
     # 1.)
-    df = pd.read_csv("./homework01/s1_data_hw.csv", encoding="utf-8-sig")
+    df = pd.read_csv("./homeworks/homework01/s1_data_hw.csv", encoding="utf-8-sig")
     monthly_returns, df_adjusted = monthly_log_return(df)
     print(monthly_returns.head())
 
     # 2.) 
     wti_plot(df_adjusted)
-
-
