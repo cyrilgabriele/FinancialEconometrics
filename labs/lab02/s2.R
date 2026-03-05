@@ -85,25 +85,44 @@ gghistogram(res,add.normal=TRUE)
 #that you'd reject the null hypothesis that the data comes from a normal distribution. 
 
 #Q7 Autocorrelation
-ggAcf(res, lag.max = 10) + ggtitle("Correlogram of residuals")
 #The pair of dashed lines represents confidence bounds of 2 standard errors (± 2/sqrt(T)).
 #Note that a 95% confidence interval would be ± 1.96/sqrt(T).
 #The ACF is only slighlty significant at lag 1
 
 #Ljung-Box test:
 Box.test(res, lag = 10, type="Lj")
-#Explanation: Ljung-box test assesses if there is autocorrelation in the residuals. The p-value is large => the residuals are not distinguishable from a white noise
+#Explanation: Ljung-box test assesses if there is autocorrelation in the residuals. 
+# If the p-value is large => the residuals are not distinguishable from a white noise
+# Since the p-value is actually small => we reject the hypothesis H_0:= no autocorrelation
+# !!! IMPORTANT !!!
+# If a bar is within the (blue) confidence bands:
+# - You fail to reject H0: rho_s = 0 at that lag s (roughly a 5% test per lag).
+# - Interpretation: any apparent autocorrelation at that lag could be sampling noise.
+
+# If a bar is outside the (blue) confidence bands:
+# - You reject H0: rho_s = 0 at that lag s.
+# - Interpretation: there is evidence the residuals still have serial dependence at that horizon.
+
+# Important nuance (multiple lags):
+# - Because you check many lags, even true white-noise residuals can show an occasional spike
+#   outside the bands “by chance” (multiple testing effect).
+# - That’s why we also use joint tests of autocorrelation, e.g., Box–Pierce / Ljung–Box.
+
+
 
 #(Q5+6+7)
 checkresiduals(fit,test=FALSE)
 
 #Q8 White test
-#Breusch-Pagan test
+# H_0:= the data is homoskedasticity
+# Breusch-Pagan test
 bptest(fit)
-#Breusch-Pagan test is different from White test in that there is no squared regressor or 
-#cross-product of the regressors (just the regressors themselves). So we add them back to get White test:
+# Breusch-Pagan test is different from White test in that there is no squared regressor or 
+# cross-product of the regressors (just the regressors themselves). So we add them back to get White test:
 bptest(fit, ~ mktrf + I(mktrf^2), data = ts)
-#The use of the I operator specifies that the ^ exponentiation is a mathematical operator, not the ^ formula operator (factor crossing).
+# The use of the I operator specifies that the ^ exponentiation is a mathematical operator, not the ^ formula operator (factor crossing).
+# Since the p-value is small => we reject H_0 i.e. we assume that there is heteroskedasticity => bad for most formulas
+
 
 #Q9 HAC standard errors
 m <- floor(0.75*T^(1/3)) #rule of thumb for nb of lags
@@ -124,6 +143,7 @@ summary(fitsur)
 #correlation between the error terms across equations.
 
 #Q11
+# H_0:= alpha_1 = alpha_2 = ...
 #First, define the restriction for the hypothesis test. Here, the restriction is if both intercepts are jointly equal to zero. 
 restriction <- c("macreg_(Intercept)","distreg_(Intercept)")
 #Then, do a hyothesis test using linearHypothesis() from the "car" package. This is using the Chi-squared test. 
