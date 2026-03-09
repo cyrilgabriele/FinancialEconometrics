@@ -176,6 +176,71 @@ def highest_jarque_bera(monthly_returns):
     return asset_name_max_JB, value_max_JB
 
 
+def hike_cut_identification(df): 
+    df = df.sort_values("Date")
+    df["delta_DFEDTARU"] = df["DFEDTARU"].diff()
+    df["is_hike"] = (df["delta_DFEDTARU"] > 0).astype(int)
+    df["plateau"] = (df["delta_DFEDTARU"] == 0).astype(int)
+    df["is_cut"] = (df["delta_DFEDTARU"] < 0).astype(int)
+
+    return df    
+
+
+def label_hiking_months(df_hike_cut):
+    df_hike_cut = df_hike_cut.sort_values("Date").reset_index(drop=True).copy()
+
+    df_hike_cut["D_t"] = 0
+    df_hike_cut["cycle_id"] = pd.NA
+
+    in_cycle = False
+    current_cycle_id = 0
+    cycle_start_idx = None
+    last_hike_idx = None
+    pause_length = 0
+
+    for i in range(len(df_hike_cut)):
+        current_row = df_hike_cut.iloc[i]
+
+        if current_row["is_hike"]:
+            if not in_cycle:
+                in_cycle = True
+                current_cycle_id += 1
+                cycle_start_idx = i
+
+            last_hike_idx = i
+            pause_length = 0
+            continue
+
+        if in_cycle and current_row["is_cut"]:
+            df_hike_cut.loc[cycle_start_idx:last_hike_idx, "D_t"] = 1
+            df_hike_cut.loc[cycle_start_idx:last_hike_idx, "cycle_id"] = current_cycle_id
+
+            in_cycle = False
+            cycle_start_idx = None
+            last_hike_idx = None
+            pause_length = 0
+            continue
+
+        if in_cycle:
+            pause_length += 1
+
+            if pause_length >= 6:
+                df_hike_cut.loc[cycle_start_idx:last_hike_idx, "D_t"] = 1
+                df_hike_cut.loc[cycle_start_idx:last_hike_idx, "cycle_id"] = current_cycle_id
+
+                in_cycle = False
+                cycle_start_idx = None
+                last_hike_idx = None
+                pause_length = 0
+
+    if in_cycle and cycle_start_idx is not None and last_hike_idx is not None:
+        df_hike_cut.loc[cycle_start_idx:last_hike_idx, "D_t"] = 1
+        df_hike_cut.loc[cycle_start_idx:last_hike_idx, "cycle_id"] = current_cycle_id
+
+    return df_hike_cut
+        
+
+
 
 if __name__ == "__main__":
     # 1.) + 2.)
@@ -212,6 +277,8 @@ if __name__ == "__main__":
     asset_name_max_kurt, value_max_kurt = highest_kurtoisis(monthly_returns)
     print(f"{asset_name_max_kurt} has the highest value with: {value_max_kurt.round(4)}")
     # plot_kutosis_vs_normal(monthly_returns, asset_name_max_kurt)
+    # Interpretation: 
+    # I mean the observed distribution is not normal but centered around the mean.
     
     
     # 8.) 
@@ -219,3 +286,11 @@ if __name__ == "__main__":
     print(f"highest Jarque Bera value has {asset_name_max_JB} with: {value_max_JB}")
 
 
+    # 9.) 
+    # a.) 
+    df_hike_cut = hike_cut_identification(df)
+    df_hikes = label_hiking_months(df_hike_cut)
+    print(df_hike_cut.head())
+    df_cycles = label_hiking_months(df_hikes)
+    num_hiking_cycles = (df_cycles["D_t"] == 1).sum()
+    print(f"number of hiking cycles = {num_hiking_cycles}")
