@@ -1,3 +1,5 @@
+from calendar import month
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -103,6 +105,78 @@ def testing_CI_avg_ret_gold(df):
         print("Cannot claim Gold outperformed the risk-free rate at the 95% confidence level.\n")
 
 
+def correlation_matrix_risky_assets(monthly_returns): 
+    risky_cols = [
+        "SP500_monthly_log_return",
+        "STOXX600_monthly_log_return",
+        "NIKKEI_monthly_log_return",
+        "GOLD_monthly_log_return",
+        "WTI_monthly_log_return",
+    ]
+    
+    correlation_matrix = monthly_returns[risky_cols].corr()
+    return correlation_matrix
+
+
+def highest_kurtoisis(monthly_returns): 
+    risky_cols = [
+        "SP500_monthly_log_return",
+        "STOXX600_monthly_log_return",
+        "NIKKEI_monthly_log_return",
+        "GOLD_monthly_log_return",
+        "WTI_monthly_log_return",
+    ]
+
+    kurt = monthly_returns[risky_cols].kurtosis()
+    asset_name = kurt.idxmax()
+    max_value = kurt.max()
+    return asset_name, max_value
+
+def plot_kutosis_vs_normal(monthly_returns, asset_name): 
+    returns = monthly_returns[f"{asset_name}"].dropna()
+    # this is a MLE (maximum likelihood estimation)
+    mu, sigma = stats.norm.fit(returns)
+
+    # histogram
+    mu_observed = returns.mean()
+    sigma_observed = returns.std(ddof=1)
+    plt.figure(figsize=(10, 6))
+    plt.hist(returns, bins=20, density=True, alpha=0.6, edgecolor="black", label=f"Histogram of returns ($\\mu$={mu_observed:.4f}, $\\sigma$={sigma_observed:.4f})")
+
+    # fitted normal curve
+    x = np.linspace(returns.min(), returns.max(), 500)
+    y = stats.norm.pdf(x, mu, sigma)
+    plt.plot(x, y, linewidth=2, label=f"Fitted Normal($\\mu$={mu:.4f}, $\\sigma$={sigma:.4f})")
+
+    plt.title(f"{asset_name}: Histogram with Fitted Normal Distribution")
+    plt.xlabel("Monthly log return")
+    plt.ylabel("Density")
+    plt.legend()
+    plt.show()
+
+
+def highest_jarque_bera(monthly_returns): 
+    risky_cols = [
+        "SP500_monthly_log_return",
+        "STOXX600_monthly_log_return",
+        "NIKKEI_monthly_log_return",
+        "GOLD_monthly_log_return",
+        "WTI_monthly_log_return",
+    ]
+
+    jarque_bera_scores = {}
+
+
+    for index in risky_cols: 
+        jarque_bera_score = stats.jarque_bera(monthly_returns[f"{index}"]).statistic
+        jarque_bera_scores[f"{index}"] = jarque_bera_score
+
+    asset_name_max_JB = max(jarque_bera_scores, key=jarque_bera_scores.get)
+    value_max_JB = jarque_bera_scores[f"{asset_name_max_JB}"]
+    return asset_name_max_JB, value_max_JB
+
+
+
 if __name__ == "__main__":
     # 1.) + 2.)
     df = pd.read_csv("./homework01/s1_data_hw.csv", encoding="utf-8-sig")
@@ -117,5 +191,31 @@ if __name__ == "__main__":
 
     # 5.) 
     testing_CI_avg_ret_gold(monthly_returns)
+
+    # 6.) 
+    correlation_matrix = correlation_matrix_risky_assets(monthly_returns)
+    wti_max_corr = (
+        correlation_matrix["WTI_monthly_log_return"]
+        .drop("WTI_monthly_log_return")
+        .idxmax()
+    )
+    print(f"WTI max positiv correlation with: ${wti_max_corr}")
+
+    sp500_max_corr = (
+        correlation_matrix["SP500_monthly_log_return"]
+        .drop("SP500_monthly_log_return")
+        .idxmax()
+    )
+    print(f"SP500 max positiv correlation with: ${sp500_max_corr}")
+
+    # 7.) 
+    asset_name_max_kurt, value_max_kurt = highest_kurtoisis(monthly_returns)
+    print(f"{asset_name_max_kurt} has the highest value with: {value_max_kurt.round(4)}")
+    # plot_kutosis_vs_normal(monthly_returns, asset_name_max_kurt)
+    
+    
+    # 8.) 
+    asset_name_max_JB, value_max_JB = highest_jarque_bera(monthly_returns)
+    print(f"highest Jarque Bera value has {asset_name_max_JB} with: {value_max_JB}")
 
 
