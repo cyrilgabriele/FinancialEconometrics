@@ -1,9 +1,6 @@
-from calendar import month
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import numpy as np
 from scipy import stats
 
 
@@ -26,7 +23,7 @@ def monthly_log_return(df):
     }
 
     for label, column in assets.items():
-        log_returns = np.log(data[column]).diff().round(4)
+        log_returns = np.log(data[column]).diff()
         data[f"{label}_monthly_log_return"] = log_returns
 
     result_cols = ["Date", "RF_monthly"] + [f"{label}_monthly_log_return" for label in assets]
@@ -77,14 +74,12 @@ def testing_avg_ret_stoxx(df):
     significance_level = 0.05
     t, p = stats.ttest_1samp(df["STOXX600_monthly_log_return"], popmean=0.0)
 
-    print(f"t-statistic: ${t}\n")
-    print(f"p-value: ${p}\n")
+    print(f"t-statistic: {t:.4f}")
+    print(f"p-value: {p:.4f}")
     if p < significance_level:
-        print("REJECT H_0\n")
+        print("REJECT H_0")
     else: 
-        print("FAILED TO REJECT H_0\n")
-    
-    # *spoiler*: we fail to reject the H_0 => H_0 is likely
+        print("FAILED TO REJECT H_0")
 
 
 def testing_CI_avg_ret_gold(df): 
@@ -95,14 +90,14 @@ def testing_CI_avg_ret_gold(df):
     se = gold_returns.std(ddof=1) / np.sqrt(n)
     a, b = stats.t.interval(level, n - 1, loc=mean_value, scale=se)
     
-    print(f"CI-Testing: 2.5th percentile: ${a}\n")
-    print(f"CI-Testing: 97.5th percentile: ${b}\n")
+    print(f"95% CI lower bound: {a:.4f}")
+    print(f"95% CI upper bound: {b:.4f}")
     rf_mean = df["RF_monthly"].mean()
     print(f"Average monthly risk-free rate: {rf_mean:.4f}")
     if a > rf_mean:
-        print("Gold's mean return exceeds the risk-free rate at the 95% confidence level.\n")
+        print("Gold's mean return exceeds the risk-free rate at the 95% confidence level.")
     else:
-        print("Cannot claim Gold outperformed the risk-free rate at the 95% confidence level.\n")
+        print("Cannot claim Gold outperformed the risk-free rate at the 95% confidence level.")
 
 
 def correlation_matrix_risky_assets(monthly_returns): 
@@ -154,32 +149,7 @@ def plot_kutosis_vs_normal(monthly_returns, asset_name):
     plt.legend()
     plt.show()
 
-'''
-def highest_jarque_bera(monthly_returns): 
-    risky_cols = [
-        "SP500_monthly_log_return",
-        "STOXX600_monthly_log_return",
-        "NIKKEI_monthly_log_return",
-        "GOLD_monthly_log_return",
-        "WTI_monthly_log_return",
-    ]
 
-    jarque_bera_scores = {}
-
-
-    for index in risky_cols: 
-
-
-    jarque_bera_score = stats.jarque_bera(monthly_returns[f"{index}"]).statistic
-    jarque_bera_scores[f"{index}"] = jarque_bera_score
-
-    asset_name_max_JB = max(jarque_bera_scores, key=jarque_bera_scores.get)
-    value_max_JB = jarque_bera_scores[f"{asset_name_max_JB}"]
-    return asset_name_max_JB, value_max_JB
-
-'''
-
-#Addded the p-value as Mentioned in Question 8
 def highest_jarque_bera(monthly_returns): 
     risky_cols = [
         "SP500_monthly_log_return",
@@ -318,12 +288,12 @@ def analyze_monetary_regimes(df, df_cycles):
 
 if __name__ == "__main__":
     # 1.) + 2.)
-    df = pd.read_csv("./homework01/s1_data_hw.csv", encoding="utf-8-sig")
+    df = pd.read_csv("homeworks\homework01\s1_data_hw.csv", encoding="utf-8-sig")
     monthly_returns, df_adjusted = monthly_log_return(df)
     print(monthly_returns.head())
 
     # 3.) 
-    # wti_plots(df_adjusted)
+    wti_plots(df_adjusted)
 
     # 4.) 
     testing_avg_ret_stoxx(monthly_returns)
@@ -338,41 +308,29 @@ if __name__ == "__main__":
         .drop("WTI_monthly_log_return")
         .idxmax()
     )
-    print(f"WTI max positiv correlation with: ${wti_max_corr}")
+    print(f"WTI most correlated with: {wti_max_corr}")
 
     sp500_max_corr = (
         correlation_matrix["SP500_monthly_log_return"]
         .drop("SP500_monthly_log_return")
         .idxmax()
     )
-    print(f"SP500 max positiv correlation with: ${sp500_max_corr}")
+    print(f"SP500 most correlated with: {sp500_max_corr}")
 
     # 7.) 
     asset_name_max_kurt, value_max_kurt = highest_kurtoisis(monthly_returns)
-    print(f"{asset_name_max_kurt} has the highest value with: {value_max_kurt.round(4)}")
-    # plot_kutosis_vs_normal(monthly_returns, asset_name_max_kurt)
-    # Interpretation: 
-    # I mean the observed distribution is not normal but centered around the mean.
-    
-    '''
+    print(f"Highest excess kurtosis: {asset_name_max_kurt} = {value_max_kurt:.4f}")
+    plot_kutosis_vs_normal(monthly_returns, asset_name_max_kurt)
+
     # 8.) 
-    asset_name_max_JB, value_max_JB = highest_jarque_bera(monthly_returns)
-    print(f"highest Jarque Bera value has {asset_name_max_JB} with: {value_max_JB}")
-    '''
-
-    # 8.) (Added p-value)
     asset_name_max_JB, value_max_JB, pval_max_JB = highest_jarque_bera(monthly_returns)
-    print(f"Highest Jarque Bera is {asset_name_max_JB} with stat: {value_max_JB:.4f} and p-value: {pval_max_JB}")
+    print(f"Highest Jarque-Bera: {asset_name_max_JB}, stat: {value_max_JB:.4f}, p-value: {pval_max_JB}")
 
-    # 9.) 
-    # a.) 
+    # 9a.) 
     df_hike_cut = hike_cut_identification(df)
-    df_hikes = label_hiking_months(df_hike_cut)
-    print(df_hike_cut.head())
-    df_cycles = label_hiking_months(df_hikes)
-    num_hiking_cycles = (df_cycles["D_t"] == 1).sum()
-    print(f"number of hiking cycles = {num_hiking_cycles}")
+    df_cycles = label_hiking_months(df_hike_cut)
+    num_hiking_months = (df_cycles["D_t"] == 1).sum()
+    print(f"Total hiking-cycle months (sum of D_t): {num_hiking_months}")
 
-
-    # 9.) b, c, d, e
+    # 9b-e.) 
     df_regimes = analyze_monetary_regimes(df, df_cycles)
