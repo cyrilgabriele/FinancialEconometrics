@@ -257,24 +257,24 @@ def analyze_monetary_regimes(df, df_cycles):
     data["SP500_total_return"] = ((data["SPY US INDEX"] + (data["SPDIV"] / 12)) / data["SP500_lag"]) - 1
     
     std_total_return = data["SP500_total_return"].std(ddof=1)
-    print(f"\n--- Question 9 ---")
-    print(f"9(b) Std Dev of SP500 Total Return: {std_total_return:.4f}")
+    print(f"\n Question 9: ")
+    print(f"9. b) Std Dev of SP500 Total Return: {std_total_return:.4f}")
     
     # 9(c): Hiking-cycle months (D_t == 1)
     hike_data = data[data["D_t"] == 1]["SP500_total_return"].dropna()
     hike_mean = hike_data.mean()
     hike_iqr = stats.iqr(hike_data)
-    print(f"9(c) Hiking Cycles -> Mean: {hike_mean:.4f}, IQR: {hike_iqr:.4f}")
+    print(f"9. c) Hiking Cycles -> Mean: {hike_mean:.4f}, IQR: {hike_iqr:.4f}")
     
     # 9(d): Outside hiking cycles (D_t == 0)
     ease_data = data[data["D_t"] == 0]["SP500_total_return"].dropna()
     ease_mean = ease_data.mean()
     ease_iqr = stats.iqr(ease_data)
-    print(f"9(d) Easing/Pause Cycles -> Mean: {ease_mean:.4f}, IQR: {ease_iqr:.4f}")
+    print(f"9. d) Easing/Pause Cycles -> Mean: {ease_mean:.4f}, IQR: {ease_iqr:.4f}")
     
     # 9(e): Two-sample t-test testing H_0: mu_hike = mu_ease
     t_stat, p_val = stats.ttest_ind(hike_data, ease_data, equal_var=True)
-    print(f"9(e) t-test -> t-statistic: {t_stat:.4f}, p-value: {p_val:.4f}")
+    print(f"9. e) t-test -> t-statistic: {t_stat:.4f}, p-value: {p_val:.4f}")
     
     if p_val < 0.05:
         print("     Result: Reject H_0. Returns are significantly different at the 5% level.")
