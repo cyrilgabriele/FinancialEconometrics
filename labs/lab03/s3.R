@@ -18,8 +18,16 @@ SP500 <- ts$SP500
 sp500 <- ts$sp500
 autoplot(SP500) #series with trends or seasonality => non-stationary
 autoplot(sp500)
+# ---
 ggAcf(SP500,lag.max=10) #strong serial dependence with a slow decay => non-stationary
+# all the lags are statistically relevant and decaying very slow => non-stationary
+# also see given comment above
+# ---
+# here direct and indirect effects shown
 ggAcf(sp500,lag.max=10)
+# ---
+# indirect NOT shown here
+# to understand this plot is important! 
 ggPacf(SP500,lag.max=10) #strong serial dependence with a slow decay => non-stationary
 
 #Explanation: ggAcf(): This function generates an autocorrelation plot (ACF) for 
@@ -34,20 +42,18 @@ ggPacf(SP500,lag.max=10) #strong serial dependence with a slow decay => non-stat
 #The lag.max parameter specifies the maximum lag to be considered in the plot.
 
 
-
-
-
-
-
 #Q3 Formal unit root tests
 #SP500
+# adf H_0: series has a unit root / is non-stationary
 adf <- ur.df(SP500,type="drift")
 summary(adf)
-kpss <- ur.kpss(SP500,type="mu")
+# ---
+# kpss H_0: series is stationary around a constant meankpss <- ur.kpss(SP500,type="mu")
 summary(kpss)
 #sp500
 adf <- ur.df(sp500,type="drift") 
 summary(adf)
+# kpss H_0: series is stationary around a constant mean
 kpss <- ur.kpss(sp500,type="mu") 
 summary(kpss) 
 
@@ -59,7 +65,6 @@ summary(kpss)
 #This indicates that the time series does not have a unit root and is stationary.
 
 #KPSS test H0 = stationary (constant mean, variance and autocovariance). 
-
 
 
 #Q4 AR(1) forecast
@@ -81,25 +86,12 @@ forecast(fit, h=1)$mean #to only extract the forecast
 #qnorm() is a function in R that calculates quantiles of the normal distribution
 
 
-
-
-
-
-
 #Q5 AR(1) model checking
 checkresiduals(fit)
 #fitted vs actual returns:
 fitted <- xts(fitted(fit),order.by=index(sp500['/2005-05'])) #converting the fitted values to an xts object
 series <- cbind(fitted,sp500['/2005-05'])
 autoplot(series,facets=NULL) #conditional volatility (heteroskedasticity) hard to capture with an AR(1)!
-
-
-
-
-
-
-
-
 
 
 #Q6 Multiple AR(1) forecasts
@@ -119,12 +111,6 @@ series <- cbind(ts$sp500,ts$f_ar1)
 autoplot(series,facets=NULL)
 
 
-
-
-
-
-
-
 #Q8 RMSE
 fe_ar1 <- sp500-ts$f_ar1 #forecast error series
 RMSE_ar1 <- sqrt(mean((fe_ar1)^2,na.rm=TRUE))
@@ -132,9 +118,6 @@ RMSE_ar1 <- sqrt(mean((fe_ar1)^2,na.rm=TRUE))
 #Explanation: RMSE provides a measure of the model's prediction accuracy in the 
 #same units as the target variable. Lower RMSE values indicate better agreement 
 #between predicted and actual values, while higher RMSE values indicate poorer performance.
-
-
-
 
 
 #Q9 Factor model forecast
@@ -157,26 +140,19 @@ fe_fac <- sp500-ts$f_fac #forecast error series
 RMSE_fac <- sqrt(mean((fe_fac)^2,na.rm=TRUE))
 #accuracy(as.ts(ts$f_fac),as.ts(ts$sp500))
 
-
-
-
-
-
 #Q11 Diebold-Mariano test
+# used since the error is so similar between the two models is so small 
+# H_0: RSME (accuracy) is the same for both models
 dm.test(fe_ar1, fe_fac, alternative = "greater") #DM test with quadratic loss
-
 
 #Explanation: DM test is used to compare the forecast accuracy of two competing 
 #forecasting models. It evaluates if one significantly outperforms the otehr in terms 
 # of accuracy. 
-
+# ---
 #Alternative can be = greater, less or two.sided. 
-
-
 
 
 #Q12 R2oos
 R2oos <- 1 - RMSE_fac^2/RMSE_ar1^2
 #the R2oos is negative, indicating that the fac model cannot beat the ar1. 
 #This is confirmed by the one-sided Diebold-Mariano test, where we fail to reject the null.
-
