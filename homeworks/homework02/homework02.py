@@ -98,11 +98,9 @@ def exercise_3_autocorr_check(model):
     dw_stat = durbin_watson(residuals)
 
     if dw_stat < 1.5:
-        conclusion = "evidence of positive first-order autocorrelation"
-    elif dw_stat > 1.5:
-        conclusion = "evidence of negative first-order autocorrelation"
+        conclusion = "reject H_0 in favor of positive first-order autocorrelation"
     else:
-        conclusion = "no first-order autocorrelation"
+        conclusion = "do not reject H_0 of no first-order autocorrelation using the lecture-note DW heuristic"
 
     return {
         "durbin_watson": dw_stat,
