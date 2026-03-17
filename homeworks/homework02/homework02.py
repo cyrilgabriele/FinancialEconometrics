@@ -58,6 +58,20 @@ def plot_residuals(df, model):
     axes[1].set_ylabel("Residuals")
     axes[1].set_title("Residuals over Time")
 
+    # Highlight the financial crisis period (high volatility area)
+    axes[1].axvspan(
+        pd.Timestamp("2008-09-01"),
+        pd.Timestamp("2009-06-01"),
+        alpha=0.2,
+        color="orange",
+        label="High volatility (GFC)"
+    )
+    axes[1].legend()
+
+    axes[1].set_xlabel("Date")
+    axes[1].set_ylabel("Residuals")
+    axes[1].set_title("Residuals over Time")
+
     plt.show()
 
 
@@ -85,7 +99,7 @@ def exercise_3_autocorr_check(model):
 
     if dw_stat < 1.5:
         conclusion = "evidence of positive first-order autocorrelation"
-    elif dw_stat > 1.5:
+    elif dw_stat > 2.5:
         conclusion = "evidence of negative first-order autocorrelation"
     else:
         conclusion = "no first-order autocorrelation"
