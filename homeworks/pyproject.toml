@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "linearmodels>=7.0",
     "matplotlib>=3.10.8",
     "pandas>=3.0.1",
     "pingouin>=0.6.0",
