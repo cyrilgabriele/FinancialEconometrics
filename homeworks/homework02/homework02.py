@@ -99,7 +99,7 @@ def exercise_3_autocorr_check(model):
 
     if dw_stat < 1.5:
         conclusion = "evidence of positive first-order autocorrelation"
-    elif dw_stat > 2.5:
+    elif dw_stat > 1.5:
         conclusion = "evidence of negative first-order autocorrelation"
     else:
         conclusion = "no first-order autocorrelation"
