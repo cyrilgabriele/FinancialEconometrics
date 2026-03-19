@@ -1,20 +1,21 @@
-
 library(ggplot2)
 library(xts)
 library(forecast) 
 library(stats4) #for mle()
 library(rugarch) #for GARCH models
 
-data <- read.table("s4_data.txt",header = TRUE,sep="\t")
+data <- read.table("./s4_data.txt",header = TRUE,sep="\t")
 ts <- xts(x = data[-1], order.by = as.Date(data$date))
 remove(data)
 
 #Q1 MLE (normal distribution)
+# MLE is efficient while OLS is robust
 negLL <- function(b0, b1, s) {
   logdens = dnorm(ts$enrgy, b0 + b1*ts$mkt, abs(s), log = TRUE)
   -sum(logdens)
 }
 #The mle() function minimizes the negative of the log-likelihood (equivalent to maximizing the log-likelihood)
+# b0 (= alpha) + beta_1  <=  1
 fit.norm <- mle(negLL, start = list(b0=0.5, b1=1, s=0.85)) 
 summary(fit.norm)
 
