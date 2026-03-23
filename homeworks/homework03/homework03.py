@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 
 from pathlib import Path
 from scipy.stats import norm
+import statsmodels.api as sm
 from statsmodels.tsa.ar_model import ar_select_order, AutoReg
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.tsa.stattools import adfuller, kpss
@@ -144,7 +145,7 @@ def exercise_2_p_selection(df):
     return p
 
 
-def exercise_3_demeaned_ar(df: pd.DatFrame, p) -> pd.Dataframe: 
+def exercise_3_demeaned_ar(df: pd.DataFrame, p) -> pd.DataFrame:
     sample = df[(df["date"] >= "2000-01-01") & (df["date"] <= "2008-12-31")].copy()
 
     y = sample["excess_r_FINANC"].dropna().reset_index(drop=True)
@@ -277,6 +278,122 @@ def exercise_6_stationarity_tests(
     )
 
     return data, results
+
+
+
+
+def prepare_factor_data(df: pd.DataFrame) -> pd.DataFrame:
+    """Helper function to create lagged variables and the price-dividend ratio for the factor model."""
+    data = df.sort_values("date").reset_index(drop=True).copy()
+    
+    # Calculate price-dividend ratio
+    data["pd"] = np.log(data["SP500"] / data["SPDIV"])
+    
+    # Create the lagged predictors
+    data["excess_r_SP500_lag1"] = data["excess_r_SP500"].shift(1)
+    data["eurusd_lag1"] = data["eurusd"].shift(1)
+    data["VIX_lag1"] = data["VIX"].shift(1)
+    data["pd_lag1"] = data["pd"].shift(1)
+    
+    return data
+
+def exercise_7_factor_model(df: pd.DataFrame):
+    data = prepare_factor_data(df)
+    
+    # In-sample data filtering
+    train_mask = (data["date"] >= "2000-01-01") & (data["date"] <= "2008-12-31")
+    train = data[train_mask].dropna(subset=["excess_r_FINANC", "excess_r_SP500_lag1", "eurusd_lag1", "VIX_lag1", "pd_lag1"])
+    
+    # Define target and predictors
+    y_train = train["excess_r_FINANC"]
+    X_train = train[["excess_r_SP500_lag1", "eurusd_lag1", "VIX_lag1", "pd_lag1"]]
+    X_train = sm.add_constant(X_train)
+    
+    # Fit the OLS model
+    model = sm.OLS(y_train, X_train).fit()
+    
+    # Forecast for 2009:01
+    test_mask = data["date"].dt.strftime("%Y-%m") == "2009-01"
+    X_test = data.loc[test_mask, ["excess_r_SP500_lag1", "eurusd_lag1", "VIX_lag1", "pd_lag1"]]
+    X_test.insert(0, 'const', 1.0)
+    
+    pred = model.get_prediction(X_test)
+    forecast = float(pred.predicted_mean[0])
+    
+    # 95% Confidence Interval
+    ci95 = pred.conf_int(alpha=0.05)
+    
+    return {
+        "model": model,
+        "forecast_date": "2009-01",
+        "forecast_excess_r_FINANC": forecast,
+        "ci95_lower": float(ci95[0][0]),
+        "ci95_upper": float(ci95[0][1]),
+    }
+
+def exercise_8_factor_model_oos(df: pd.DataFrame):
+    data = prepare_factor_data(df)
+    data = data.dropna(subset=["excess_r_FINANC", "excess_r_SP500_lag1", "eurusd_lag1", "VIX_lag1", "pd_lag1"]).reset_index(drop=True)
+    
+    oos_mask = data["date"] >= pd.Timestamp("2009-01-01")
+    oos_idx = data.index[oos_mask]
+    
+    forecasts = []
+    
+    for idx in oos_idx:
+        forecast_date = data.loc[idx, "date"]
+        
+        # Expanding window: all available data before the forecast date
+        train = data.loc[data["date"] < forecast_date]
+        
+        y_train = train["excess_r_FINANC"]
+        X_train = train[["excess_r_SP500_lag1", "eurusd_lag1", "VIX_lag1", "pd_lag1"]]
+        X_train = sm.add_constant(X_train)
+        
+        model = sm.OLS(y_train, X_train).fit()
+        
+        # Test sample for the 1-step ahead forecast
+        X_test = data.loc[[idx], ["excess_r_SP500_lag1", "eurusd_lag1", "VIX_lag1", "pd_lag1"]]
+        X_test.insert(0, 'const', 1.0)
+        
+        forecast = float(model.predict(X_test).iloc[0])
+        actual = float(data.loc[idx, "excess_r_FINANC"])
+        error = actual - forecast
+        
+        forecasts.append({
+            "date": forecast_date,
+            "forecast_excess_r_FINANC": forecast,
+            "actual_excess_r_FINANC": actual,
+            "forecast_error": error,
+            "squared_error": error ** 2,
+        })
+        
+    forecasts_df = pd.DataFrame(forecasts)
+    rmse = float(np.sqrt(forecasts_df["squared_error"].mean()))
+    
+    return forecasts_df, rmse
+
+def exercise_9_diebold_mariano(ar_forecasts_df: pd.DataFrame, factor_forecasts_df: pd.DataFrame):
+    # Merge to ensure the dates line up perfectly
+    merged = ar_forecasts_df[["date", "forecast_error"]].merge(
+        factor_forecasts_df[["date", "forecast_error"]], 
+        on="date", 
+        suffixes=("_ar", "_factor")
+    )
+    
+    # Quadratic Loss Function formulation
+    # d_t = e^2_1,t - e^2_2,t
+    d = (merged["forecast_error_ar"] ** 2) - (merged["forecast_error_factor"] ** 2)
+    
+    # We test if the mean of d is significantly different from 0.
+    # Using OLS with HAC (Newey-West) standard errors.
+    model = sm.OLS(d, np.ones(len(d))).fit(cov_type='HAC', cov_kwds={'maxlags': 1})
+    
+    return {
+        "dm_stat": float(model.tvalues[0]),
+        "p_value": float(model.pvalues[0]),
+        "mean_loss_diff": float(model.params[0])
+    }
 
 
 
