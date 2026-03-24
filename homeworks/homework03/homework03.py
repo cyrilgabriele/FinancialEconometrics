@@ -7,6 +7,7 @@ from scipy.stats import norm
 from statsmodels.tsa.ar_model import ar_select_order, AutoReg
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.tsa.stattools import adfuller, kpss
+import statsmodels.api as sm
 
 
 
@@ -229,7 +230,7 @@ def exercise_5_out_of_sample_forecast(df: pd.DataFrame, p):
 def exercise_6_stationarity_tests(
     df: pd.DataFrame,
     start_date: str = "2000-01-01",
-    end_date: str = "2008-12-31",
+    end_date: str = "2019-09-30",
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     data = df.sort_values("date").copy()
     data = data[data["date"] >= pd.Timestamp(start_date)].copy()
@@ -279,9 +280,236 @@ def exercise_6_stationarity_tests(
     return data, results
 
 
+def exercise_7_special_factor_model(
+    df: pd.DataFrame,
+    start_date: str = "2000-01-01",
+    end_date: str = "2008-12-31",
+):
+    data = df.sort_values("date").copy()
+
+    # Q7 uses lagged predictors
+    data["lag_excess_r_SP500"] = data["excess_r_SP500"].shift(1)
+    data["lag_eurusd"] = data["eurusd"].shift(1)
+    data["lag_VIX"] = data["VIX"].shift(1)
+    data["lag_pd"] = data["pd"].shift(1)
+
+    # estimation sample: 2000:01 to 2008:12
+    sample = data[
+        (data["date"] >= pd.Timestamp(start_date)) &
+        (data["date"] <= pd.Timestamp(end_date))
+    ].copy()
+
+    sample = sample[
+        [
+            "date",
+            "excess_r_FINANC",
+            "lag_excess_r_SP500",
+            "lag_eurusd",
+            "lag_VIX",
+            "lag_pd",
+        ]
+    ].dropna().reset_index(drop=True)
+
+    y = sample["excess_r_FINANC"]
+    X = sample[
+        [
+            "lag_excess_r_SP500",
+            "lag_eurusd",
+            "lag_VIX",
+            "lag_pd",
+        ]
+    ]
+    X = sm.add_constant(X, has_constant="add")
+
+    model = sm.OLS(y, X).fit()
+
+    # forecast 2009:01 using predictor values from 2008:12
+    row_2008_12 = data.loc[data["date"] == pd.Timestamp("2008-12-31")].copy()
+
+    Xf = pd.DataFrame(
+        {
+            "const": [1.0],
+            "lag_excess_r_SP500": [float(row_2008_12["excess_r_SP500"].iloc[0])],
+            "lag_eurusd": [float(row_2008_12["eurusd"].iloc[0])],
+            "lag_VIX": [float(row_2008_12["VIX"].iloc[0])],
+            "lag_pd": [float(row_2008_12["pd"].iloc[0])],
+        }
+    )
+
+    pred = model.get_prediction(Xf)
+    pred_summary = pred.summary_frame(alpha=0.05)
+
+    return {
+        "model": model,
+        "forecast_date": "2009-01",
+        "forecast_excess_r_FINANC": float(pred_summary["mean"].iloc[0]),
+        "ci95_lower": float(pred_summary["mean_ci_lower"].iloc[0]),
+        "ci95_upper": float(pred_summary["mean_ci_upper"].iloc[0]),
+    }
+
+
+def exercise_8_oos_factor_model(df: pd.DataFrame):
+    data = df.sort_values("date").copy()
+
+    # same regressors as in exercise 7
+    data["lag_excess_r_SP500"] = data["excess_r_SP500"].shift(1)
+    data["lag_eurusd"] = data["eurusd"].shift(1)   # keep consistent with your ex. 7
+    data["lag_VIX"] = data["VIX"].shift(1)
+    data["lag_pd"] = data["pd"].shift(1)
+
+    cols = [
+        "date",
+        "excess_r_FINANC",
+        "lag_excess_r_SP500",
+        "lag_eurusd",
+        "lag_VIX",
+        "lag_pd",
+    ]
+    data = data[cols].dropna().reset_index(drop=True)
+
+    forecasts = []
+
+    # first OOS forecast is 2009:01
+    oos_idx = data.index[data["date"] >= pd.Timestamp("2009-01-01")]
+
+    for idx in oos_idx:
+        forecast_date = data.loc[idx, "date"]
+
+        # estimation sample: all data strictly before the forecast month
+        train = data.loc[data["date"] < forecast_date].copy()
+
+        y_train = train["excess_r_FINANC"]
+        X_train = train[
+            ["lag_excess_r_SP500", "lag_eurusd", "lag_VIX", "lag_pd"]
+        ]
+        X_train = sm.add_constant(X_train, has_constant="add")
+
+        model = sm.OLS(y_train, X_train).fit()
+
+        # predictors known at t-1 for forecasting month t
+        Xf = data.loc[[idx], ["lag_excess_r_SP500", "lag_eurusd", "lag_VIX", "lag_pd"]]
+        Xf = sm.add_constant(Xf, has_constant="add")
+
+        forecast = float(model.predict(Xf).iloc[0])
+        actual = float(data.loc[idx, "excess_r_FINANC"])
+        error = actual - forecast
+
+        forecasts.append(
+            {
+                "date": forecast_date,
+                "forecast_excess_r_FINANC": forecast,
+                "actual_excess_r_FINANC": actual,
+                "forecast_error": error,
+                "squared_error": error ** 2,
+            }
+        )
+
+    forecasts_df = pd.DataFrame(forecasts)
+    rmse = float(np.sqrt(forecasts_df["squared_error"].mean()))
+
+    # required plot: predicted vs realized
+    plt.figure(figsize=(10, 5))
+    plt.plot(
+        forecasts_df["date"],
+        forecasts_df["actual_excess_r_FINANC"],
+        label="Realized",
+    )
+    plt.plot(
+        forecasts_df["date"],
+        forecasts_df["forecast_excess_r_FINANC"],
+        label="Predicted",
+    )
+    plt.title("Exercise 8: OOS forecasts from factor model")
+    plt.xlabel("Date")
+    plt.ylabel("Excess return")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    return forecasts_df, rmse
+
+
+import numpy as np
+import pandas as pd
+from scipy.stats import norm
+
+
+def exercise_9_diebold_mariano(
+    forecasts_ar: pd.DataFrame,
+    forecasts_factor: pd.DataFrame,
+    h: int = 1,
+):
+    """
+    Two-sided Diebold-Mariano test with quadratic loss.
+
+    Required columns in both dataframes:
+        - "date"
+        - "forecast_error"
+
+    h = forecast horizon. For this homework, h=1.
+    """
+
+    # Align same OOS months from both models
+    df = forecasts_ar[["date", "forecast_error"]].rename(
+        columns={"forecast_error": "e_ar"}
+    ).merge(
+        forecasts_factor[["date", "forecast_error"]].rename(
+            columns={"forecast_error": "e_factor"}
+        ),
+        on="date",
+        how="inner",
+    ).sort_values("date").reset_index(drop=True)
+
+    if len(df) == 0:
+        raise ValueError("No overlapping forecast dates between the two models.")
+
+    # Quadratic loss differential: AR loss - Factor loss
+    df["d"] = df["e_ar"] ** 2 - df["e_factor"] ** 2
+
+    d = df["d"].to_numpy()
+    T = len(d)
+    d_bar = d.mean()
+
+    # Long-run variance estimate with Bartlett weights
+    # For h=1, this is just gamma_0
+    gamma0 = np.mean((d - d_bar) ** 2)
+    lrv = gamma0
+
+    for lag in range(1, h):
+        cov = np.mean((d[lag:] - d_bar) * (d[:-lag] - d_bar))
+        weight = 1.0 - lag / h
+        lrv += 2.0 * weight * cov
+
+    dm_stat = d_bar / np.sqrt(lrv / T)
+    p_value = 2.0 * (1.0 - norm.cdf(abs(dm_stat)))
+
+    # Interpretation of sign
+    if d_bar > 0:
+        better_model = "Factor model"
+    elif d_bar < 0:
+        better_model = "AR model"
+    else:
+        better_model = "Tie"
+
+    conclusion = (
+        "Reject equal forecast accuracy at 5%"
+        if p_value < 0.05
+        else "Do not reject equal forecast accuracy at 5%"
+    )
+
+    return {
+        "n_obs": T,
+        "mean_loss_diff": float(d_bar),
+        "dm_stat": float(dm_stat),
+        "p_value": float(p_value),
+        "better_model_by_average_quadratic_loss": better_model,
+        "conclusion_5pct": conclusion,
+        "details": df,
+    }
+
 
 if __name__ == "__main__":
     data_path = Path(__file__).resolve().parent / "s3_data.txt"
     df = pd.read_csv(data_path, sep="\t")
     df = clean_data(df)
-    print(df.head())
+    # print(df.head())
