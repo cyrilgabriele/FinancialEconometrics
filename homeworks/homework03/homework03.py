@@ -8,6 +8,7 @@ from statsmodels.tsa.ar_model import ar_select_order, AutoReg
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.tsa.stattools import adfuller, kpss
 import statsmodels.api as sm
+from statsmodels.stats.diagnostic import acorr_ljungbox
 
 
 
@@ -154,6 +155,26 @@ def exercise_3_demeaned_ar(df: pd.DataFrame, p) -> pd.DataFrame:
     # ATTENTION: since we use y do be demeaned 
     # => trend = no trend i.e. the constant is not needed
     ar_model = AutoReg(y_dm, lags=p, trend="n", hold_back=p, old_names=False).fit()
+
+    residuals = ar_model.resid
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+    # 1. Time plot
+    axes[0].plot(residuals)
+    axes[0].set_title("Residual Time Plot")
+    axes[0].axhline(0, color='red', linestyle='--')
+
+    # 2. ACF
+    plot_acf(residuals, lags=15, ax=axes[1])
+    axes[1].set_title("ACF of Residuals")
+
+    # 3. Histogram
+    axes[2].hist(residuals, bins=20, edgecolor='black')
+    axes[2].set_title("Residual Histogram")
+
+    plt.tight_layout()
+    plt.show()
+
     return ar_model    
 
 
@@ -229,6 +250,7 @@ def exercise_5_out_of_sample_forecast(df: pd.DataFrame, p):
 
 def exercise_6_stationarity_tests(
     df: pd.DataFrame,
+    ar_model,
     start_date: str = "2000-01-01",
     end_date: str = "2019-09-30",
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -255,6 +277,15 @@ def exercise_6_stationarity_tests(
         regression="c",
         nlags="auto",
     )
+
+    residuals = ar_model.resid
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+    axes[0].plot(residuals); axes[0].axhline(0, color="red", ls="--"); axes[0].set_title("Residuals")
+    plot_acf(residuals, lags=15, alpha=0.05, ax=axes[1]); axes[1].set_title("ACF of Residuals")
+    axes[2].hist(residuals, bins=20, edgecolor="black", density=True); axes[2].set_title("Histogram")
+    plt.tight_layout(); plt.show()
+
+    print(acorr_ljungbox(residuals, lags=[10, 15, 20], return_df=True))
 
     results = pd.DataFrame(
         [
