@@ -1,13 +1,14 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import statsmodels.api as sm
 
+from scipy.stats import norm
 from pathlib import Path
 from scipy.stats import norm
 from statsmodels.tsa.ar_model import ar_select_order, AutoReg
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.tsa.stattools import adfuller, kpss
-import statsmodels.api as sm
 from statsmodels.stats.diagnostic import acorr_ljungbox
 
 
@@ -458,11 +459,6 @@ def exercise_8_oos_factor_model(df: pd.DataFrame):
     plt.show()
 
     return forecasts_df, rmse
-
-
-import numpy as np
-import pandas as pd
-from scipy.stats import norm
 
 
 def exercise_9_diebold_mariano(
