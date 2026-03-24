@@ -374,8 +374,8 @@ def exercise_7_special_factor_model(
         "model": model,
         "forecast_date": "2009-01",
         "forecast_excess_r_FINANC": float(pred_summary["mean"].iloc[0]),
-        "ci95_lower": float(pred_summary["mean_ci_lower"].iloc[0]),
-        "ci95_upper": float(pred_summary["mean_ci_upper"].iloc[0]),
+        "ci95_lower": float(pred_summary["obs_ci_lower"].iloc[0]),
+        "ci95_upper": float(pred_summary["obs_ci_upper"].iloc[0]),
     }
 
 
