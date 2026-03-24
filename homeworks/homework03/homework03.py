@@ -145,7 +145,7 @@ def exercise_2_p_selection(df):
     return p
 
 
-def exercise_3_demeaned_ar(df: pd.DatFrame, p) -> pd.Dataframe: 
+def exercise_3_demeaned_ar(df: pd.DataFrame, p) -> pd.DataFrame: 
     sample = df[(df["date"] >= "2000-01-01") & (df["date"] <= "2008-12-31")].copy()
 
     y = sample["excess_r_FINANC"].dropna().reset_index(drop=True)
