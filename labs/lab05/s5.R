@@ -1,5 +1,3 @@
-setwd("C:/folder/PhD/Econometrics/R/s5")
-
 library(ggplot2)
 library(xts)
 library(sandwich) 
@@ -31,6 +29,7 @@ sample(x)
 sample(x,replace=T) #replacement allowed => an observation can be chosen more than once. needed for bootsrapping
 #estimation after resampling
 res <- residuals(fit)
+# sample(res,replace=T) are the bootstraped residuals (from the in Q1 computed residuals)
 y_sim <- fitted(fit) + sample(res,replace=T)
 fit.resamp <- lm(y_sim ~ ts$mktrf_qoq)
 summary(fit.resamp)
@@ -78,7 +77,7 @@ remove(data)
 
 #Q6 Boxplots
 pdata$rx <- pdata$performance - pdata$rf
-windows()
+# windows()
 ggplot(data=as.data.frame(pdata), aes(x = id, y = rx)) + geom_boxplot()
 
 #Q7 Pooled OLS
@@ -90,7 +89,7 @@ T <- length(unique(pdata$date))
 m <- floor(0.75*T^(1/3)) #rule of thumb for nb of lags
 coeftest(fit.pool, vcov = vcovSCC(fit.pool, maxlag = m)) #robust (Driscoll-Kraay) errors
 
-#Q9 FE
+#Q9 FE = Fixed Effects (Lecture 12, page 22)
 fit.fe<-plm(rx~mktrf, model="within", data=pdata)
 summary(fit.fe)
 
