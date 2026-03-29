@@ -73,10 +73,10 @@ fit.g11
 sigma <- sigma(fit.g11)
 autoplot(sigma)
 
-windows()
+# windows()
 plot(fit.g11, which=3) #conditional sd (sigma)
 plot(fit.g11, which=9) #qqplot of standardized residuals
-windows()
+# windows()
 plot(fit.g11, which="all") #overview of the other plots available
 
 #Q7 GJR
@@ -125,13 +125,6 @@ VaR_oosample <- mu +sigma(fitfor)*qnorm(0.10)
 #or using the built-in function from rugarch
 quantile(fitfor,0.10)
 
-
-
-
-
-
-
-
 #OPTIONAL: ARMA(1,1) with GARCH errors
 auto.arima(ts$enrgy) #see ?auto.arima. We get an ARMA(1,1)
 spec <- ugarchspec(variance.model = list(model="sGARCH",garchOrder=c(1, 1)),
@@ -146,4 +139,3 @@ spec <- ugarchspec(variance.model = list(model="sGARCH",garchOrder=c(1, 1)),
                    distribution.model = "norm")
 fit.reg.g11 <- ugarchfit(spec = spec, data = ts$enrgy)
 fit.reg.g11 #beta is the coefficient on the line 'mxreg1' (alpha is on the line 'mu')
-
