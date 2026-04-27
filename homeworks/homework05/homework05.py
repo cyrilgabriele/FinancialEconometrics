@@ -584,15 +584,6 @@ def exercise_9_pooled_ols_robust(df: pd.DataFrame):
     T = df_panel_sample["date"].nunique()
     maxlags = int(np.floor(0.75 * (T ** (1 / 3))))
 
-    robust_model = pooled_model.get_robustcov_results(
-        cov_type="hac-groupsum",
-        time=df_panel_sample["date"].factorize()[0],
-        maxlags=maxlags,
-        kernel="bartlett",
-        use_correction="cluster",
-        df_correction=True,
-    )
-
     # hac-groupsum is the Driscoll-Kraay in statsmodel! 
     # use the Driscoll-Kraay if autocorrelation in residuals for Panel Data!
     robust_model = pooled_model.get_robustcov_results(
