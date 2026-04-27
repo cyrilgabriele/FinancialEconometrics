@@ -125,23 +125,31 @@ def exercise_3_bootstrap_pvalues(
     k = len(param_names)
 
     boot_betas = np.empty((n_boot, k))
+    boot_ses   = np.empty((n_boot, k)) 
 
     for b in range(n_boot):
         resampled_residuals = rng.choice(residuals, size=len(residuals), replace=True)
         y_star = y_hat + resampled_residuals
         boot_model = sm.OLS(y_star, X).fit()
         boot_betas[b, :] = boot_model.params.to_numpy()
+        boot_ses[b, :]   = boot_model.bse.to_numpy()
 
     bootstrap_coefficients = pd.DataFrame(boot_betas, columns=param_names)
 
-    # 2 * min(share below 0, share above 0)
-    bootstrap_pvalues_two_sided = pd.Series(index=param_names, dtype=float)
+    # t*_b = (beta*_b - beta_hat) / SE*_b   <- zentriert um Originalschätzung
+    # t_obs = beta_hat / SE_hat             <- Test gegen H0: beta = 0
+    beta_hat = original_model.params.to_numpy()
+    se_hat   = original_model.bse.to_numpy()
+    t_obs    = beta_hat / se_hat
 
-    for name in param_names:
-        draws = bootstrap_coefficients[name].to_numpy()
-        p_left = np.mean(draws <= 0.0)
-        p_right = np.mean(draws >= 0.0)
-        bootstrap_pvalues_two_sided[name] = min(1.0, 2.0 * min(p_left, p_right))
+    t_star = (boot_betas - beta_hat) / boot_ses   # shape (n_boot, k)
+
+    # two-sided p-value: share of |t*_b| >= |t_obs|
+    pvals_array = np.mean(np.abs(t_star) >= np.abs(t_obs), axis=0)
+
+    bootstrap_pvalues_two_sided = pd.Series(
+        pvals_array, index=param_names, dtype=float
+    )
 
     alpha = 1.0 - ci_level
     lower_q = 100.0 * (alpha / 2.0)
@@ -227,6 +235,7 @@ def exercise_4_block_bootstrap_pvalues(
     k = len(param_names)
 
     boot_betas = np.empty((n_boot, k))
+    boot_ses   = np.empty((n_boot, k))
 
     for b in range(n_boot):
         block_idx = _moving_block_bootstrap_indices(
@@ -240,16 +249,26 @@ def exercise_4_block_bootstrap_pvalues(
 
         boot_model = sm.OLS(y_star, X).fit()
         boot_betas[b, :] = boot_model.params.to_numpy()
+        boot_ses[b, :]   = boot_model.bse.to_numpy()
 
     bootstrap_coefficients = pd.DataFrame(boot_betas, columns=param_names)
 
     bootstrap_pvalues_two_sided = pd.Series(index=param_names, dtype=float)
 
-    for name in param_names:
-        draws = bootstrap_coefficients[name].to_numpy()
-        p_left = np.mean(draws <= 0.0)
-        p_right = np.mean(draws >= 0.0)
-        bootstrap_pvalues_two_sided[name] = min(1.0, 2.0 * min(p_left, p_right))
+    # t*_b = (beta*_b - beta_hat) / SE*_b   <- zentriert um Originalschätzung
+    # t_obs = beta_hat / SE_hat             <- Test gegen H0: beta = 0
+    beta_hat = original_model.params.to_numpy()
+    se_hat   = original_model.bse.to_numpy()
+    t_obs    = beta_hat / se_hat
+
+    t_star = (boot_betas - beta_hat) / boot_ses   # shape (n_boot, k)
+
+    # zweiseitiger p-Wert: Anteil der |t*| >= |t_obs|
+    pvals_array = np.mean(np.abs(t_star) >= np.abs(t_obs), axis=0)
+
+    bootstrap_pvalues_two_sided = pd.Series(
+        pvals_array, index=param_names, dtype=float
+    )
 
     summary_table = pd.DataFrame({
         "coef_hat": original_model.params,
@@ -259,6 +278,7 @@ def exercise_4_block_bootstrap_pvalues(
     return {
         "original_model": original_model,
         "bootstrap_coefficients": bootstrap_coefficients,
+        "bootstrap_ses": pd.DataFrame(boot_ses, columns=param_names),
         "bootstrap_pvalues_two_sided": bootstrap_pvalues_two_sided,
         "summary_table": summary_table,
     }
@@ -291,13 +311,24 @@ def exercise_5_block_bootstrap_ci(
 
     original_model = ex4_result["original_model"]
     bootstrap_coefficients = ex4_result["bootstrap_coefficients"]
+    bootstrap_ses          = ex4_result["bootstrap_ses"]
 
     alpha = 1.0 - ci_level      # alpha: significance level 
                                 # => since confidence band divide it by 2 after in the CI computation
 
+    # t*_b = (beta*_b - beta_hat) / SE*_b
+    # CI:   [ beta_hat - t*_{1-alpha/2} * SE_hat , beta_hat - t*_{alpha/2} * SE_hat ]
+    beta_hat = original_model.params
+    se_hat   = original_model.bse
+
+    t_star = (bootstrap_coefficients - beta_hat) / bootstrap_ses
+
+    t_lower = t_star.quantile(alpha / 2) 
+    t_upper = t_star.quantile(1 - alpha / 2)
+
     confidence_intervals = pd.DataFrame({
-        "ci_lower": bootstrap_coefficients.quantile(alpha / 2),
-        "ci_upper": bootstrap_coefficients.quantile(1 - alpha / 2),
+        "ci_lower": beta_hat - t_upper * se_hat,
+        "ci_upper": beta_hat - t_lower * se_hat,
     })
 
     summary_table = pd.DataFrame({
